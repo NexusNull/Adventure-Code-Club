@@ -193,7 +193,7 @@ block content
 
                     each property in properties
                         - let isRounded = !unrounded.includes(property)
-                        - let acc = item[property]
+                        - let acc = item[property]||0;
 
                         tr
                             if item.ability && property.startsWith('attr')
