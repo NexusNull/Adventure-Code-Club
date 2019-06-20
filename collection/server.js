@@ -40,7 +40,16 @@ server.route({
                 }
             }
         }
-
+        if (data.kills && Array.isArray(data.kills)) {
+            for (let compound of data.compounds) {
+                try {
+                    await mysql.insertCompound(compound.item.name, compound.item.level, compound.scroll.name, compound.offering, compound.success + 0, data.apiKey);
+                    await mysql.updateCompoundsStatistics(compound.item.name, compound.item.level, 1, compound.success + 0);
+                } catch (e) {
+                    console.error(e)
+                }
+            }
+        }
     }
 });
 
@@ -54,6 +63,7 @@ server.route({
         reply().code(200);
     }
 });
+
 server.route({
     method: 'POST',
     path: '/upgrade',
@@ -64,6 +74,7 @@ server.route({
         reply().code(200);
         if (upgradeData.upgrades && Array.isArray(upgradeData.upgrades)) {
             for (let upgrade of upgradeData.upgrades) {
+                console.log(upgrade)
                 await mysql.insertUpgrade(upgrade.item.name, upgrade.item.level, upgrade.scroll.name, upgrade.offering, upgrade.success ? 1 : 0, upgradeData.apiKey)
                 await mysql.updateUpgradesStatistics(upgrade.item.name, upgrade.item.level, 1, upgrade.success ? 1 : 0)
             }

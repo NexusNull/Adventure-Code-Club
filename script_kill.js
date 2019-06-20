@@ -38,7 +38,6 @@ setTimeout(function () {
             if (entity && entity.type == "monster" && event.death) {
                 var last_death = {
                     type: entity.mtype,
-                    level: entity.level,
                     id: entity.id,
                     map: entity.in,
                     level: entity.level,
@@ -47,7 +46,7 @@ setTimeout(function () {
                     time: new Date()
                 };
                 last_deaths.push(last_death);
-                var drop = find_matching_drop(last_death)
+                var drop = find_matching_drop(last_death);
                 if (drop) {
                     link_drop_death(last_death, drop);
                 }
@@ -67,13 +66,20 @@ function drop_handler(event) {
 }
 
 function find_matching_death(drop) {
-    var match = last_deaths.filter(d => drop.time - d.time <= 1 && drop.map == d.map && parent.simple_distance(drop, d) <= 10)[0];
-    return match;
+    return last_deaths.filter(function (d) {
+        return drop.time - d.time <= 1 &&
+            drop.map == d.map &&
+            parent.simple_distance(drop, d) <= 10
+    })[0];
 }
 
 function find_matching_drop(death) {
-    var match = last_drops.filter(d => death.time - d.time <= 1 && death.map == d.map && parent.simple_distance(death, d) <= 10)[0];
-    return match;
+    return last_drops.filter(function (d) {
+        return death.time - d.time <= 1 &&
+            death.map == d.map &&
+            parent.simple_distance(death, d) <= 10
+    })[0];
+
 }
 
 function cleanup_drops() {
@@ -110,14 +116,12 @@ function log_handler(event) {
             if (last_opened && Math.abs(last_opened.time - last_gold.time) <= 1) {
                 link_gold();
             }
-        }
-        else if (event.message.includes(personalPrefix) || event.message.includes(groupPrefix)) {
+        } else if (event.message.includes(personalPrefix) || event.message.includes(groupPrefix)) {
             var item = event.message.replace(personalPrefix, "").replace(groupPrefix, "").replace(" a ", "").replace(" an ", "");
 
             if (last_opened && Math.abs(last_opened.time - new Date()) <= 1) {
                 link_item(item);
-            }
-            else {
+            } else {
                 if (!last_items) {
                     last_items = [];
                 }
@@ -228,9 +232,9 @@ setInterval(function () {
         console.log("Reporting Drops", opened);
         var data = {
             apiKey: apiKey,
-            name:character.name,
+            name: character.name,
             kills: opened,
-        }
+        };
         request.send(JSON.stringify(data));
     }
 }, 1000 * 30);

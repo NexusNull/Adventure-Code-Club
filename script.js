@@ -6,6 +6,7 @@ var apiKey = "YOUR_API_KEY";
 
 var upgrade_data = [];
 var compound_data = [];
+var kill_data  = [];
 
 var old_compound = compound;
 var old_upgrade = upgrade;
@@ -34,9 +35,9 @@ InventoryWatcher.removeListener = function (event, callback) {
 };
 
 function calculate_grade(item) {
-    if(!item || !item.name || !G.items[item.name]){
+    if (!item || !item.name || !G.items[item.name]) {
         return 0;
-    } else{
+    } else {
         var b = G.items[item.name];
     }
     if (!(b.upgrade || b.compound)) {
@@ -92,7 +93,7 @@ inv.upgrade = async function (item_index, scroll_index, offering_index) {
 
                 console.log("lock:" + item_index);
                 var listener = {
-                    changeListener : function (itemNum, item) {
+                    changeListener: function (itemNum, item) {
                         if (item_index == itemNum) {
                             lockTable[item_index] = false;
                             InventoryWatcher.removeListener("changed", listener.changeListener);
@@ -102,10 +103,12 @@ inv.upgrade = async function (item_index, scroll_index, offering_index) {
                                 scroll: scroll,
                                 offering: offering,
                                 success: true,
+                                seed0: seed0(),
+                                seed1: seed1()
                             });
                         }
                     },
-                    removedListener : function (itemNum, item) {
+                    removedListener: function (itemNum, item) {
                         if (item_index == itemNum) {
                             lockTable[item_index] = false;
                             InventoryWatcher.removeListener("removed", listener.removedListener);
@@ -115,6 +118,8 @@ inv.upgrade = async function (item_index, scroll_index, offering_index) {
                                 scroll: scroll,
                                 offering: offering,
                                 success: false,
+                                seed0: seed0(),
+                                seed1: seed1()
                             })
                         }
                     }
@@ -135,30 +140,30 @@ inv.upgrade = async function (item_index, scroll_index, offering_index) {
 
 inv.compound = async function (item0, item1, item2, scroll_num, offering_num) {
     return new Promise(function (resolve, reject) {
-        if(!character.items[item0] || !character.items[item1] || !character.items[item2]){
+        if (!character.items[item0] || !character.items[item1] || !character.items[item2]) {
             reject("Not all items are present");
             return;
         }
-        if(!G.items[character.items[item0].name].compound){
+        if (!G.items[character.items[item0].name].compound) {
             reject("Item not compoundable");
             return;
         }
-        if(!(character.items[item0].name === character.items[item1].name && character.items[item1].name === character.items[item2].name)){
+        if (!(character.items[item0].name === character.items[item1].name && character.items[item1].name === character.items[item2].name)) {
             reject("Items aren't equal");
             return;
         }
-        if(!(character.items[item0].level === character.items[item1].level && character.items[item1].level === character.items[item2].level)){
+        if (!(character.items[item0].level === character.items[item1].level && character.items[item1].level === character.items[item2].level)) {
             reject("Item level different");
             return;
         }
-        if(!(character.items[scroll_num] &&
-                character.items[scroll_num].name &&
-                character.items[scroll_num].name.startsWith("cscroll") &&
-                calculate_grade(character.items[item0]) <= (+character.items[scroll_num].name.replace("cscroll","")))){
+        if (!(character.items[scroll_num] &&
+            character.items[scroll_num].name &&
+            character.items[scroll_num].name.startsWith("cscroll") &&
+            calculate_grade(character.items[item0]) <= (+character.items[scroll_num].name.replace("cscroll", "")))) {
             reject("Invalid Scroll");
             return;
         }
-        if(character.items[offering_num] && character.items[offering_num].name === "offering"){
+        if (character.items[offering_num] && character.items[offering_num].name === "offering") {
             var offering = true;
         } else {
             offering = false;
@@ -217,18 +222,28 @@ inv.compound = async function (item0, item1, item2, scroll_num, offering_num) {
         }
     });
 };
+
 parent.inv = inv;
-if (!parent.upgradeData) {
-    parent.upgradeData = {};
+
+
+upgrade = function (item_index, scroll_index, offering_index) {
+    inv.upgrade(item_index, scroll_index, offering_index);
+};
+
+compound = function (item0, item1, item2, scroll_num, offering_num) {
+    inv.compound(item0, item1, item2, scroll_num, offering_num);
+};
+
+function on_hit(){
+
+}
+function on_drop(){
+
 }
 
 
-upgrade = function(item_index, scroll_index, offering_index) {
-    inv.upgrade(item_index, scroll_index, offering_index);
-};
-compound = function(item0, item1, item2, scroll_num, offering_num) {
-    inv.compound(item0, item1, item2, scroll_num, offering_num);
-};
+
+
 
 
 setInterval(function () {
@@ -245,6 +260,7 @@ setInterval(function () {
 }, 1000 * 30);
 
 parent.socket.on("player", playerListener);
+
 on_destroy = function () {
     parent.removeEventListener("player", playerListener);
     let request = new XMLHttpRequest();

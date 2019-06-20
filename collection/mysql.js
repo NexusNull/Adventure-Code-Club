@@ -1,22 +1,13 @@
 const settings = require("../settings");
 const mysql = require('mysql');
-
-var connection = mysql.createConnection({
+const input = new (require("./Input"))();
+var pool  = mysql.createPool({
+    connectionLimit : 10,
     host: settings.database.hostname,
     user: settings.database.username,
     password: settings.database.password,
     database: settings.database.database,
     multipleStatements: true
-});
-
-connection.connect(function (err) {
-    if (err) {
-        console.error('Error connecting to Database: ' + err.stack);
-        process.exit();
-        return;
-    }
-
-    console.log('connected as id ' + connection.threadId);
 });
 
 const st = {
@@ -25,14 +16,14 @@ const st = {
         drops: "INSERT INTO drops (item_name, kill_id) VALUES (?,?);",
         exchanges: "INSERT INTO exchanges (item_name, item_level, result, amount, api_key, time) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP());",
         compounds: "INSERT INTO compounds (item_name, item_level, scroll_type, offering, success, api_key, time) VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP());",
-        upgrades: "INSERT INTO upgrades (item_name, item_level, scroll_type, offering, success, api_key, time) VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP());",
+        upgrades: "INSERT INTO upgrades (item_name, item_level, scroll_type, offering, success, api_key, time,) VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP());",
         market: "",
         api_key: "INSERT INTO api_keys (player, api_key, valid) VALUES (?,?,?)",
     },
     tables: ["drops", "exchanges", "upgrades", "compounds", "kills"],
     limits: "SELECT \n" +
-    "(SELECT id FROM ?? ORDER BY id LIMIT 1) as 'first',\n" +
-    "(SELECT id FROM ?? ORDER BY id DESC LIMIT 1) as 'last'",
+        "(SELECT id FROM ?? ORDER BY id LIMIT 1) as 'first',\n" +
+        "(SELECT id FROM ?? ORDER BY id DESC LIMIT 1) as 'last'",
     aggregate: {
         kills: "SELECT i.monster_name, COUNT(*) AS kills, i.character_name, i.map, i.monster_level, SUM(i.gold) AS total_gold FROM (SELECT * FROM kills WHERE id >= ?  AND id < ?) AS i GROUP BY i.monster_name, i.character_name, i.map,i.monster_level;",
         drops: "SELECT k.monster_name, d.item_name, k.map, k.monster_level, COUNT(*) AS seen FROM (SELECT * FROM drops WHERE id >= ?  AND id < ? ) AS d INNER JOIN kills AS k ON d.kill_id = k.id GROUP BY k.monster_name, d.item_name, k.monster_level, k.map;",
@@ -72,7 +63,7 @@ const st = {
  *
  * @param {string} monster_name
  * @param {string} chest_type
- * @param {string} map
+ * @param {string} map_name
  * @param {number} monster_level
  * @param {number} gold
  * @param {number} items
@@ -81,41 +72,36 @@ const st = {
  * @param version
  * @returns {Promise<any>}
  */
-const insertKill = async function (monster_name, map, monster_level, gold, items, character_name, api_key) {
+const insertKill = async function (monster_name, map_name, monster_level, gold, items, character_name, api_key) {
     return new Promise(function (resolve, reject) {
-        if (typeof monster_name !== "string") {
-            reject("Monster name invalid!");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        if (typeof map !== "string") {
-            reject("Map invalid!");
-            return;
-        }
-        if (typeof monster_level !== "number" || monster_level < 1) {
-            reject("Monster level invalid!");
-            return;
-        }
-        if (typeof gold !== "number" || gold < 0) {
-            reject("Gold invalid!");
-            return;
-        }
-        if (typeof items !== "number" || items < 0) {
-            reject("Items invalid!");
-            return;
-        }
-        if (typeof character_name !== "string") {
-            reject("Character name invalid!");
-            return;
-        }
-        if (typeof api_key !== "string" || api_key.length > 64) {
-            reject("API " + api_key + " key invalid!");
-            return;
-        }
-        connection.query(st.insert.kills, [monster_name, map, monster_level, gold, items, character_name, api_key], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (!input.validate(monster_name, "string", {min: 2, max: 16}))
+            fail("invalid monster name");
+        if (!input.validate(map_name, "string", {min: 2, max: 16}))
+            fail("invalid map name");
+        if (!input.validate(monster_level, "int", {min: 0, max: 1000}))
+            fail("invalid monster level");
+        if (!input.validate(gold, "int", {min: 0, max: 100000000}))
+            fail("invalid gold amount");
+        if (!input.validate(items, "int", {min: 0, max: 1000}))
+            fail("invalid item amount");
+        if (!input.validate(character_name, "string", {min: 2, max: 16}))
+            fail("invalid character name");
+        if (!input.validate(api_key, "string", {min: 2, max: 64}))
+            fail("invalid api key");
+
+        if (!failed)
+            pool.query(st.insert.kills, [monster_name, map_name, monster_level, gold, items, character_name, api_key], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     });
 };
 
@@ -127,19 +113,24 @@ const insertKill = async function (monster_name, map, monster_level, gold, items
  */
 const insertDrop = async function (item_name, kill_id) {
     return new Promise(function (resolve, reject) {
-        if (typeof item_name !== "string") {
-            reject("Item name invalid!");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        if (typeof kill_id !== "number" || kill_id < 0) {
-            reject("kill id invalid!");
-            return;
-        }
-        connection.query(st.insert.drops, [item_name, kill_id], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (!input.validate(item_name, "string", {min: 2, max: 16}))
+            fail("invalid item name");
+        if (!input.validate(kill_id, "int", {min: 0}))
+            fail("invalid kill id");
+
+        if (!failed)
+            pool.query(st.insert.drops, [item_name, kill_id], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     });
 };
 
@@ -154,31 +145,30 @@ const insertDrop = async function (item_name, kill_id) {
  */
 const insertExchange = async function (item_name, item_level, result, amount, api_key) {
     return new Promise(function (resolve, reject) {
-        if (typeof item_name !== "string") {
-            reject("Item name invalid!");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        if (typeof item_level !== "number") {
-            reject("Item level invalid!");
-            return;
-        }
-        if (typeof result !== "string") {
-            reject("Result invalid!");
-            return;
-        }
-        if (typeof amount !== "number") {
-            reject("Amount invalid!");
-            return;
-        }
-        if (typeof api_key !== "string" || api_key.length > 64) {
-            reject("API key invalid!");
-            return;
-        }
-        connection.query(st.insert.exchanges, [item_name, item_level, result, amount, api_key], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (!input.validate(item_name, "string", {min: 2, max: 16}))
+            fail("invalid item name");
+        if (!input.validate(item_level, "int", {min: 0, max: 12}))
+            fail("invalid item level");
+        if (!input.validate(result, "string", {min: 2, max: 16}))
+            fail("invalid result item name");
+        if (!input.validate(amount, "int", {min: 0, max: 9999}))
+            fail("invalid item amount");
+        if (!input.validate(api_key, "string", {min: 2, max: 64}))
+            fail("invalid api key");
+
+        if (!failed)
+            pool.query(st.insert.exchanges, [item_name, item_level, result, amount, api_key], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     });
 };
 
@@ -194,35 +184,32 @@ const insertExchange = async function (item_name, item_level, result, amount, ap
  */
 const insertCompound = async function (item_name, item_level, scroll_type, offering, success, api_key) {
     return new Promise(function (resolve, reject) {
-        if (typeof item_name !== "string") {
-            reject("Item name invalid!");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        if (typeof item_level !== "number") {
-            reject("Item level invalid!");
-            return;
-        }
-        if (typeof scroll_type !== "string") {
-            reject("Scroll type invalid!");
-            return;
-        }
-        if (typeof offering !== "boolean") {
-            reject("Offering invalid!");
-            return;
-        }
-        if (typeof offering !== "boolean") {
-            reject("Success invalid!");
-            return;
-        }
-        if (typeof api_key !== "string" || api_key.length > 64) {
-            reject("API key invalid!");
-            return;
-        }
-        connection.query(st.insert.compounds, [item_name, item_level, scroll_type, offering, success, api_key], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (!input.validate(item_name, "string", {min: 2, max: 16}))
+            fail("invalid item name");
+        if (!input.validate(item_level, "int", {min: 0, max: 12}))
+            fail("invalid item level");
+        if (!input.validate(scroll_type, "string", {min: 2, max: 16}))
+            fail("invalid scroll_type");
+        if (!input.validate(offering, "bool"))
+            fail("invalid offering");
+        if (!input.validate(success, "bool"))
+            fail("invalid success");
+        if (!input.validate(api_key, "string", {min: 2, max: 64}))
+            fail("invalid api key");
+
+        if (!failed)
+            pool.query(st.insert.compounds, [item_name, item_level, scroll_type, offering, success, api_key], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     });
 };
 
@@ -234,39 +221,38 @@ const insertCompound = async function (item_name, item_level, scroll_type, offer
  * @param {number} offering
  * @param {number} success
  * @param {string} api_key
+ * @param {number} seed0
+ * @param {number} seed1
  * @returns {Promise<any>}
  */
 const insertUpgrade = async function (item_name, item_level, scroll_type, offering, success, api_key) {
     return new Promise(function (resolve, reject) {
-        if (typeof item_name !== "string") {
-            reject("Item name invalid!");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        if (typeof item_level !== "number") {
-            reject("Item level invalid!");
-            return;
-        }
-        if (typeof scroll_type !== "string") {
-            reject("Scroll type invalid!");
-            return;
-        }
-        if (typeof offering !== "boolean") {
-            reject("Offering invalid!");
-            return;
-        }
-        if (typeof offering !== "boolean") {
-            reject("Success invalid!");
-            return;
-        }
-        if (typeof api_key !== "string" || api_key.length > 64) {
-            reject("API key invalid!");
-            return;
-        }
-        connection.query(st.insert.upgrades, [item_name, item_level, scroll_type, offering, success, api_key], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (!input.validate(item_name, "string", {min: 2, max: 16}))
+            fail("invalid item name");
+        if (!input.validate(item_level, "int", {min: 0, max: 12}))
+            fail("invalid item level");
+        if (!input.validate(scroll_type, "string", {min: 2, max: 16}))
+            fail("invalid scroll_type");
+        if (!input.validate(offering, "bool"))
+            fail("invalid offering");
+        if (!input.validate(success, "bool"))
+            fail("invalid success");
+        if (!input.validate(api_key, "string", {min: 2, max: 64}))
+            fail("invalid api key");
+
+        if (!failed)
+            pool.query(st.insert.upgrades, [item_name, item_level, scroll_type, offering, success, api_key], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     });
 };
 
@@ -279,23 +265,26 @@ const insertUpgrade = async function (item_name, item_level, scroll_type, offeri
  */
 const insertApiKey = async function (player, api_key, valid) {
     return new Promise(function (resolve, reject) {
-        if (typeof player !== "string") {
-            reject("Player name invalid!");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        if (typeof api_key !== "string" || api_key.length > 64) {
-            reject("API key invalid!");
-            return;
-        }
-        if (typeof valid !== "boolean") {
-            reject("valid invalid!");
-            return;
-        }
-        connection.query(st.insert.api_key, [player, api_key, valid], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (!input.validate(player, "string", {min: 2, max: 64}))
+            fail("invalid player name");
+        if (!input.validate(api_key, "string", {min: 2, max: 64}))
+            fail("invalid character name");
+        if (!input.validate(valid, "bool", {min: 2, max: 64}))
+            fail("valid has to be bool");
+
+        if (!failed)
+            pool.query(st.insert.api_key, [player, api_key, valid], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
 
     });
 };
@@ -307,11 +296,19 @@ const insertApiKey = async function (player, api_key, valid) {
  */
 const getLimits = async function (tableName) {
     return new Promise(function (resolve, reject) {
-        if (st.tables.includes(tableName) === -1) {
-            reject("Table name invalid!");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        connection.query(st.limits, [tableName, tableName], function (err, result) {
+
+        if (st.tables.includes(tableName)) {
+            fail("Table name invalid!");
+        }
+
+        if (!failed)
+        pool.query(st.limits, [tableName, tableName], function (err, result) {
             if (err)
                 reject(err);
             resolve(result);
@@ -327,15 +324,26 @@ const getLimits = async function (tableName) {
  */
 const aggregateDrops = async function (start, end) {
     return new Promise(function (resolve, reject) {
-        if (end <= start) {
-            reject("end has to be grater than start");
-            return;
-        }
-        connection.query(st.aggregate.drops, [start, end], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
+}
+
+if (end <= start)
+    fail("end has to be grater than start");
+if(!input.validate(start, "int", {min: 0}))
+    fail("start has to greater than zero");
+if(!input.validate(end, "int", {min: 0}))
+    fail("end has to greater than zero");
+
+        if (!failed)
+            pool.query(st.aggregate.drops, [start, end], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     })
 };
 
@@ -347,35 +355,57 @@ const aggregateDrops = async function (start, end) {
  */
 const aggregateKills = async function (start, end) {
     return new Promise(function (resolve, reject) {
-        if (end <= start) {
-            reject("end has to be grater than start");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        connection.query(st.aggregate.kills, [start, end], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (end <= start)
+            fail("end has to be grater than start");
+        if(!input.validate(start, "int", {min: 0}))
+            fail("start has to an integer greater than zero");
+        if(!input.validate(end, "int", {min: 0}))
+            fail("end has to an integer greater than zero");
+
+        if (!failed)
+            pool.query(st.aggregate.kills, [start, end], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     })
 };
 
 /**
  *
- * @param {number} start
- * @param {number} end
+ * @param {int} start
+ * @param {int} end
  * @returns {Promise<any>}
  */
 const aggregateExchanges = async function (start, end) {
     return new Promise(function (resolve, reject) {
-        if (end <= start) {
-            reject("end has to be grater than start");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        connection.query(st.aggregate.exchanges, [start, end], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (end <= start)
+            fail("end has to be grater than start");
+        if(!input.validate(start, "int", {min: 0}))
+            fail("start has to an integer greater than zero");
+        if(!input.validate(end, "int", {min: 0}))
+            fail("end has to an integer greater than zero");
+
+        if (!failed)
+            pool.query(st.aggregate.exchanges, [start, end], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     })
 };
 
@@ -387,15 +417,26 @@ const aggregateExchanges = async function (start, end) {
  */
 const aggregateUpgrades = async function (start, end) {
     return new Promise(function (resolve, reject) {
-        if (end <= start) {
-            reject("end has to be grater than start");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        connection.query(st.aggregate.upgrades, [start, end], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (end <= start)
+            fail("end has to be grater than start");
+        if(!input.validate(start, "int", {min: 0}))
+            fail("start has to an integer greater than zero");
+        if(!input.validate(end, "int", {min: 0}))
+            fail("end has to an integer greater than zero");
+
+        if (!failed)
+            pool.query(st.aggregate.upgrades, [start, end], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     })
 };
 
@@ -407,15 +448,26 @@ const aggregateUpgrades = async function (start, end) {
  */
 const aggregateCompounds = async function (start, end) {
     return new Promise(function (resolve, reject) {
-        if (end <= start) {
-            reject("end has to be grater than start");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        connection.query(st.aggregate.compounds, [start, end], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (end <= start)
+            fail("end has to be grater than start");
+        if(!input.validate(start, "int", {min: 0}))
+            fail("start has to an integer greater than zero");
+        if(!input.validate(end, "int", {min: 0}))
+            fail("end has to an integer greater than zero");
+
+        if (!failed)
+            pool.query(st.aggregate.compounds, [start, end], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     })
 };
 
@@ -423,38 +475,37 @@ const aggregateCompounds = async function (start, end) {
  *
  * @param {string} monster_name
  * @param {string} item_name
- * @param {string} map
+ * @param {string} map_name
  * @param {number} monster_level
  * @param {number} seen
  * @returns {Promise<any>}
  */
-const updateDropStatistics = function (monster_name, item_name, map, monster_level, seen) {
+const updateDropStatistics = function (monster_name, item_name, map_name, monster_level, seen) {
     return new Promise(function (resolve, reject) {
-        if (typeof monster_name !== "string") {
-            reject("Monster name invalid!");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        if (typeof item_name !== "string") {
-            reject("Item name invalid!");
-            return;
-        }
-        if (typeof map !== "string") {
-            reject("Map invalid!");
-            return;
-        }
-        if (typeof monster_level !== "number" || monster_level < 1) {
-            reject("Monster level invalid!");
-            return;
-        }
-        if (typeof seen !== "number" || seen < 1) {
-            reject("Seen invalid!");
-            return;
-        }
-        connection.query(st.update_statistics.drops, [monster_name, item_name, map, monster_level, seen, seen], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (!input.validate(monster_name, "string", {min: 2, max: 16}))
+            fail("invalid monster name");
+        if (!input.validate(item_name, "string", {min: 2, max: 16}))
+            fail("invalid item name");
+        if (!input.validate(map_name, "string", {min: 2, max: 16}))
+            fail("invalid map name");
+        if (!input.validate(monster_level, "int", {min: 0}))
+            fail("invalid monster level");
+        if (!input.validate(seen, "int", {min: 0}))
+            fail("seen invalid");
+
+        if (!failed)
+            pool.query(st.update_statistics.drops, [monster_name, item_name, map_name, monster_level, seen, seen], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     })
 };
 
@@ -462,43 +513,40 @@ const updateDropStatistics = function (monster_name, item_name, map, monster_lev
  *
  * @param {string} character_name
  * @param {string} monster_name
- * @param {string} map
+ * @param {string} map_name
  * @param {number} monster_level
  * @param {number} kills
  * @param {number} total_gold
  * @returns {Promise<any>}
  */
-const updateKillStatistics = function (character_name, monster_name, map, monster_level, kills, total_gold) {
+const updateKillStatistics = function (character_name, monster_name, map_name, monster_level, kills, total_gold) {
     return new Promise(function (resolve, reject) {
-        if (typeof character_name !== "string") {
-            reject("Character name invalid!");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        if (typeof monster_name !== "string") {
-            reject("Monster name invalid!");
-            return;
-        }
-        if (typeof map !== "string") {
-            reject("Map invalid!");
-            return;
-        }
-        if (typeof monster_level !== "number" || monster_level < 1) {
-            reject("Monster level invalid!");
-            return;
-        }
-        if (typeof kills !== "number" || kills < 1) {
-            reject("Kills invalid!");
-            return;
-        }
-        if (typeof total_gold !== "number" || total_gold < 1) {
-            reject("Total gold invalid!");
-            return;
-        }
-        connection.query(st.update_statistics.kills, [character_name, monster_name, map, monster_level, kills, total_gold, kills, total_gold], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (!input.validate(character_name, "string", {min: 2, max: 16}))
+            fail("invalid character name");
+        if (!input.validate(monster_name, "string", {min: 2, max: 16}))
+            fail("invalid monster name");
+        if (!input.validate(map_name, "string", {min: 2, max: 16}))
+            fail("invalid map name");
+        if (!input.validate(monster_level, "int", {min: 0}))
+            fail("invalid monster level");
+        if (!input.validate(kills, "int", {min: 0}))
+            fail("invalid item amount");
+        if (!input.validate(total_gold, "int", {min: 0}))
+            fail("invalid gold amount");
+
+        if (!failed)
+            pool.query(st.update_statistics.kills, [character_name, monster_name, map_name, monster_level, kills, total_gold, kills, total_gold], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     })
 };
 
@@ -513,31 +561,30 @@ const updateKillStatistics = function (character_name, monster_name, map, monste
  */
 const updateExchangeStatistics = function (item_name, item_level, result, amount, seen) {
     return new Promise(function (resolve, reject) {
-        if (typeof item_name !== "string") {
-            reject("Item name invalid!");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        if (typeof item_level !== "number" || item_level < 0) {
-            reject("Item level invalid!");
-            return;
-        }
-        if (typeof result !== "string") {
-            reject("Result invalid!");
-            return;
-        }
-        if (typeof amount !== "number" || amount < 1) {
-            reject("Amount invalid!");
-            return;
-        }
-        if (typeof seen !== "number" || seen < 1) {
-            reject("Seen invalid!");
-            return;
-        }
-        connection.query(st.update_statistics.exchanges, [item_name, item_level, result, amount, seen, seen], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (!input.validate(item_name, "string", {min: 2, max: 16}))
+            fail("invalid item name");
+        if (!input.validate(item_level, "int", {min: 0, max: 12}))
+            fail("invalid item level");
+        if (!input.validate(result, "string", {min: 2, max: 16}))
+            fail("invalid result item name");
+        if (!input.validate(amount, "int", {min: 0, max: 9999}))
+            fail("invalid item amount");
+        if (!input.validate(seen, "int", {min: 0}))
+            fail("invalid item amount");
+
+        if (!failed)
+            pool.query(st.update_statistics.exchanges, [item_name, item_level, result, amount, seen, seen], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     })
 };
 
@@ -551,31 +598,31 @@ const updateExchangeStatistics = function (item_name, item_level, result, amount
  */
 const updateUpgradesStatistics = function (item_name, item_level, total, success) {
     return new Promise(function (resolve, reject) {
-        if (typeof item_name !== "string") {
-            reject("Item name invalid!");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        if (typeof item_level !== "number" || item_level < 0) {
-            reject("Item level invalid!");
-            return;
-        }
-        if (typeof total !== "number" || total < 1) {
-            reject("Total invalid!");
-            return;
-        }
-        if (typeof success !== "number" || success < 0) {
-            reject("Success invalid!");
-            return;
-        }
+
+        if (!input.validate(item_name, "string", {min: 2, max: 16}))
+            fail("invalid item name");
+        if (!input.validate(item_level, "int", {min: 0, max: 12}))
+            fail("invalid item level");
+        if (!input.validate(success, "bool"))
+            fail("invalid success");
+
         if (total < success) {
             reject("Success has to smaller or equal to Total!");
             return;
         }
-        connection.query(st.update_statistics.upgrades, [item_name, item_level, total, success, total, success], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (!failed)
+            pool.query(st.update_statistics.upgrades, [item_name, item_level, total, success, total, success], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     })
 };
 
@@ -589,128 +636,167 @@ const updateUpgradesStatistics = function (item_name, item_level, total, success
  */
 const updateCompoundsStatistics = function (item_name, item_level, total, success) {
     return new Promise(function (resolve, reject) {
-        if (typeof item_name !== "string") {
-            reject("Item name invalid!");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        if (typeof item_level !== "number" || item_level < 0) {
-            reject("Item level invalid!");
-            return;
-        }
-        if (typeof total !== "number" || total < 1) {
-            reject("Total invalid!");
-            return;
-        }
-        if (typeof success !== "number" || success < 0) {
-            reject("Success invalid!");
-            return;
-        }
+
+        if (!input.validate(item_name, "string", {min: 2, max: 16}))
+            fail("invalid item name");
+        if (!input.validate(item_level, "int", {min: 0, max: 12}))
+            fail("invalid item level");
+        if (!input.validate(total, "int", {min: 1}))
+            fail("invalid item level");
+        if (!input.validate(success, "int", {min: 1}))
+            fail("invalid item level");
         if (total < success) {
-            reject("Success has to smaller or equal to Total!");
-            return;
+            fail("Success has to smaller or equal to Total!");
         }
-        console.log(arguments);
-        connection.query(st.update_statistics.compounds, [item_name, item_level, total, success, total, success], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (!failed)
+            pool.query(st.update_statistics.compounds, [item_name, item_level, total, success, total, success], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     })
 };
 
 /**
  *
- * @param {string} monsterName
+ * @param {string} monster_name
+ * @param {int} level
  * @returns {Promise<any>}
  */
-const getKillsByMonster = function (monsterName, level) {
+const getKillsByMonster = function (monster_name, level) {
     return new Promise(function (resolve, reject) {
-        if (typeof monsterName !== "string") {
-            reject("Monster name invalid!");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        connection.query(st.get_statistics.kills, [monsterName, level], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (!input.validate(monster_name, "string", {min: 2, max: 16}))
+            fail("invalid monster name");
+        if(!input.validate(level,"int",{min:0}))
+            fail("invalid monster level");
+
+
+        if (!failed)
+            pool.query(st.get_statistics.kills, [monster_name, level], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     })
 };
 
 /**
  *
- * @param {string} monsterName
+ * @param {string} monster_name
  * @returns {Promise<any>}
  */
-const getDropsByMonster = function (monsterName) {
+const getDropsByMonster = function (monster_name) {
     return new Promise(function (resolve, reject) {
-        if (typeof monsterName !== "string") {
-            reject("Monster name invalid!");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        connection.query(st.get_statistics.drops, [monsterName], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (!input.validate(monster_name, "string", {min: 2, max: 16}))
+            fail("invalid monster name");
+
+        if (!failed)
+            pool.query(st.get_statistics.drops, [monster_name], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     })
 };
 
 /**
  *
- * @param {string} itemName
+ * @param {string} item_name
  * @returns {Promise<any>}
  */
-const getExchangesByItemName = function (itemName) {
+const getExchangesByItemName = function (item_name) {
     return new Promise(function (resolve, reject) {
-        if (typeof itemName !== "string") {
-            reject("Item name invalid!");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        connection.query(st.get_statistics.exchanges, [itemName], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (!input.validate(item_name, "string", {min: 2, max: 16}))
+            fail("invalid monster name");
+
+        if (!failed)
+            pool.query(st.get_statistics.exchanges, [item_name], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     })
 };
 
 /**
  *
- * @param {string} itemName
+ * @param {string} item_name
  * @returns {Promise<any>}
  */
-const getUpgradesByItemName = function (itemName) {
+const getUpgradesByItemName = function (item_name) {
     return new Promise(function (resolve, reject) {
-        if (typeof itemName !== "string") {
-            reject("Item name invalid!");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        connection.query(st.get_statistics.upgrades, [itemName], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (!input.validate(item_name, "string", {min: 2, max: 16}))
+            fail("invalid monster name");
+
+        if (!failed)
+            pool.query(st.get_statistics.upgrades, [item_name], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     })
 };
 /**
  *
- * @param {string} itemName
+ * @param {string} item_name
  * @returns {Promise<any>}
  */
-const getCompoundsByItemName = function (itemName) {
+const getCompoundsByItemName = function (item_name) {
     return new Promise(function (resolve, reject) {
-        if (typeof itemName !== "string") {
-            reject("Item name invalid!");
-            return;
+        let failed = false;
+
+        function fail(reason) {
+            failed = true;
+            reject(new Error(reason));
         }
-        connection.query(st.get_statistics.compounds, [itemName], function (err, result) {
-            if (err)
-                reject(err);
-            resolve(result);
-        });
+
+        if (!input.validate(item_name, "string", {min: 2, max: 16}))
+            fail("invalid monster name");
+
+        if (!failed)
+            pool.query(st.get_statistics.compounds, [item_name], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
     })
 };
+
 /**
  *
  * @param {string} key
@@ -718,21 +804,25 @@ const getCompoundsByItemName = function (itemName) {
  */
 const validKey = async function (key) {
     return new Promise(function (resolve, reject) {
-        if (typeof key === "string" && key.length < 64)
-            connection.query(st.get.api_key, [key], function (err, result) {
+        function fail(reason) {
+            reject(new Error(reason));
+        }
+
+        if (input.validate(key, "string", {min: 0, max: 64}))
+            pool.query(st.get.api_key, [key], function (err, result) {
                 if (err)
                     reject(err);
                 resolve(result);
             });
         else
-            reject("Invalid Input");
+            fail("Invalid Input");
     });
 };
 
 const getReverseDrop = async function (itemName) {
     return new Promise(function (resolve, reject) {
         if (typeof itemName === "string")
-            connection.query(st.get_statistics.reverseDrop, [itemName], function (err, result) {
+            pool.query(st.get_statistics.reverseDrop, [itemName], function (err, result) {
                 if (err)
                     reject(err);
                 resolve(result);
@@ -749,35 +839,35 @@ const getReverseDrop = async function (itemName) {
 const clearAllStatistics = function () {
     return Promise.all([
         new Promise(function (resolve, reject) {
-            connection.query(st.clear_statistics.kills, function (err, result) {
+            pool.query(st.clear_statistics.kills, function (err, result) {
                 if (err)
                     reject(err);
                 resolve(result);
             });
         }),
         new Promise(function (resolve, reject) {
-            connection.query(st.clear_statistics.drops, function (err, result) {
+            pool.query(st.clear_statistics.drops, function (err, result) {
                 if (err)
                     reject(err);
                 resolve(result);
             });
         }),
         new Promise(function (resolve, reject) {
-            connection.query(st.clear_statistics.exchanges, function (err, result) {
+            pool.query(st.clear_statistics.exchanges, function (err, result) {
                 if (err)
                     reject(err);
                 resolve(result);
             });
         }),
         new Promise(function (resolve, reject) {
-            connection.query(st.clear_statistics.compounds, function (err, result) {
+            pool.query(st.clear_statistics.compounds, function (err, result) {
                 if (err)
                     reject(err);
                 resolve(result);
             });
         }),
         new Promise(function (resolve, reject) {
-            connection.query(st.clear_statistics.upgrades, function (err, result) {
+            pool.query(st.clear_statistics.upgrades, function (err, result) {
                 if (err)
                     reject(err);
                 resolve(result);
@@ -785,6 +875,7 @@ const clearAllStatistics = function () {
         }),
     ]);
 };
+
 module.exports = {
     insertKill: insertKill,
     insertDrop: insertDrop,
@@ -811,6 +902,6 @@ module.exports = {
     validKey: validKey,
     getReverseDrop: getReverseDrop,
     clearAllStatistics: clearAllStatistics,
-    connection: connection,
+    pool: pool,
 }
 

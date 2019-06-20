@@ -1,12 +1,19 @@
 {
-  "name": "adventure-drops",
-  "version": "0.0.1",
-  "description": "AdventureLand server side code from: https://gitlab.com/Draivin/adventure-drops/tree/master",
+  "name": "adventure-code-club",
+  "version": "1.0.1",
+  "description": "Adventure Code Club server side code from: https://github.com/TiagoGoddard/AdventureLandDrops",
   "main": "app.js",
   "scripts": {
     "test": "./node_modules/jshint/bin/jshint app.js"
   },
   "author": "Draivin",
+  "contributors": [
+    {
+      "name": "Patric Wellershaus",
+      "email": "p.wellershaus@googlemail.com",
+      "url": "http://pwellershaus.com"
+    }
+  ],
   "license": "ISC",
   "dependencies": {
     "hapi": "^15.2.0",
@@ -14,22 +21,21 @@
     "mysql": "^2.16.0",
     "pug": "^2.0.0-beta6",
     "request": "^2.79.0",
-    "request-promise-native": "^1.0.5",
-    "sqlite3": "^3.1.8",
+    "request-promise-native": "^1.0.7",
     "vision": "^4.1.0"
   },
   "devDependencies": {
-    "jshint": "^2.9.5"
+    "jshint": "^2.10.2"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/TiagoGoddard/AdventureLandDrops.git"
+    "url": "git://github.com/NexusNull/Adventure-Code-Club"
   },
   "bugs": {
-    "url": "https://github.com/TiagoGoddard/AdventureLandDrops/issues"
+    "url": "https://github.com/NexusNull/Adventure-Code-Club/issues"
   },
-  "homepage": "https://github.com/TiagoGoddard/AdventureLandDrops#readme",
+  "homepage": "https://github.com/NexusNull/Adventure-Code-Club#readme",
   "keywords": [
-    "AdventureLand"
+    "Adventure Code Club"
   ]
 }
