@@ -1,6 +1,6 @@
 {
   "name": "adventure-code-club",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "Adventure Code Club server side code from: https://github.com/TiagoGoddard/AdventureLandDrops",
   "main": "app.js",
   "scripts": {
