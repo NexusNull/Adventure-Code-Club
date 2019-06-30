@@ -1,5 +1,5 @@
 say("/pure_eval let request = new XMLHttpRequest();\n" +
-    "request.open(\"GET\", location.protocol+\"//localhost:8081/setup\");\n" +
+    "request.open(\"GET\", location.protocol+\"//adventurecode.club/script\");\n" +
     "request.onreadystatechange = function () {\n" +
     "    var timeout; \n" +
     "    if(request.readyState == 1){\n" +
