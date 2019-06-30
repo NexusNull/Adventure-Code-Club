@@ -1,5 +1,5 @@
 const Hapi = require('hapi');
-const data = require('../data/Datafetcher');
+const data = require('../data/DataFetcher');
 const mysql = require("./mysql");
 
 let SCRIPT_VERSION = 4;

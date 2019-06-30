@@ -13,6 +13,7 @@ const collection = require('./collection');
 
 const server = new Hapi.Server({
     debug: { request: ['error'] }
+
 });
 
 server.connection({ port: 8081, routes: { cors: true }});
