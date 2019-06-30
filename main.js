@@ -8,7 +8,7 @@ const Hapi = require('hapi');
 const Vision = require('vision');
 const Inert = require('inert');
 
-const routes = require('./routes');
+const routes = require('./app/routes');
 const collection = require('./collection');
 
 const server = new Hapi.Server({
@@ -55,12 +55,20 @@ server.register(Vision, (err) => {
         method: 'GET',
         path: '/scriptlocal',
         handler: {
-            file: "script.js"
+            file: "./tracking/script.js"
         }
     });
+
     server.route({
-        method: 'GET', path: '/script',
-        handler: { file: "script.js" }
+        method: 'GET',
+        path: '/script',
+        handler: { file: "./tracking/script.js" }
+    });
+
+    server.route({
+        method: 'GET',
+        path: '/setup',
+        handler: { file: "./tracking/setup.js" }
     });
 });
 

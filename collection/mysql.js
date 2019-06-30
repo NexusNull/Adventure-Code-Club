@@ -12,11 +12,11 @@ var pool  = mysql.createPool({
 
 const st = {
     insert: {
-        kills: "INSERT INTO kills (monster_name, map, monster_level, gold, items, character_name, api_key, time) VALUES (?,?,?,?,?,?,?,CURRENT_TIMESTAMP());",
+        kills: "INSERT INTO kills (monster_name, map, monster_level, gold, items, character_name, api_key_id, time) VALUES (?,?,?,?,?,?,?,CURRENT_TIMESTAMP());",
         drops: "INSERT INTO drops (item_name, kill_id) VALUES (?,?);",
-        exchanges: "INSERT INTO exchanges (item_name, item_level, result, amount, api_key, time) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP());",
-        compounds: "INSERT INTO compounds (item_name, item_level, scroll_type, offering, success, api_key, time) VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP());",
-        upgrades: "INSERT INTO upgrades (item_name, item_level, scroll_type, offering, success, api_key, time,) VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP());",
+        exchanges: "INSERT INTO exchanges (item_name, item_level, result, amount, api_key_id, time) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP());",
+        compounds: "INSERT INTO compounds (item_name, item_level, scroll_type, offering, slot_num, len, success, roll, uchance, chance, api_key_id, character_name, server, time) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP());",
+        upgrades: "INSERT INTO upgrades (item_name, item_level, scroll_type, offering, slot_num, len, success, roll, uchance, chance, api_key_id, character_name, server, time) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP());",
         market: "",
         api_key: "INSERT INTO api_keys (player, api_key, valid) VALUES (?,?,?)",
     },
@@ -48,7 +48,7 @@ const st = {
         reverseDrop: "SELECT *, a.seen*100 / a.kills AS rate FROM(SELECT i.monster_name, SUM( `kill_statistics`.`kills`) AS kills, i.seen, i.map FROM (SELECT * FROM `drop_statistics` WHERE item_name = ?) i INNER JOIN `kill_statistics` ON i.monster_name = `kill_statistics`.monster_name GROUP BY i.monster_name, i.map) a ORDER BY rate DESC"
     },
     get: {
-        api_key: "SELECT player, valid FROM api_keys WHERE api_key = ?"
+        api_key: "SELECT id, player, valid FROM api_keys WHERE api_key = ?"
     },
     clear_statistics: {
         kills: "DELETE FROM kill_statistics",
@@ -62,17 +62,15 @@ const st = {
 /**
  *
  * @param {string} monster_name
- * @param {string} chest_type
  * @param {string} map_name
  * @param {number} monster_level
  * @param {number} gold
  * @param {number} items
  * @param {string} character_name
- * @param {string} api_key
- * @param version
+ * @param {string} api_key_id
  * @returns {Promise<any>}
  */
-const insertKill = async function (monster_name, map_name, monster_level, gold, items, character_name, api_key) {
+const insertKill = async function (monster_name, map_name, monster_level, gold, items, character_name, api_key_id) {
     return new Promise(function (resolve, reject) {
         let failed = false;
 
@@ -93,11 +91,11 @@ const insertKill = async function (monster_name, map_name, monster_level, gold, 
             fail("invalid item amount");
         if (!input.validate(character_name, "string", {min: 2, max: 16}))
             fail("invalid character name");
-        if (!input.validate(api_key, "string", {min: 2, max: 64}))
+        if (!input.validate(api_key_id, "int", {min: 1, max: 12}))
             fail("invalid api key");
 
         if (!failed)
-            pool.query(st.insert.kills, [monster_name, map_name, monster_level, gold, items, character_name, api_key], function (err, result) {
+            pool.query(st.insert.kills, [monster_name, map_name, monster_level, gold, items, character_name, api_key_id], function (err, result) {
                 if (err)
                     reject(err);
                 resolve(result);
@@ -178,11 +176,18 @@ const insertExchange = async function (item_name, item_level, result, amount, ap
  * @param {number} item_level
  * @param {string} scroll_type
  * @param {boolean} offering
- * @param {boolean} success
- * @param {string} api_key
+ * @param {number} slot_num
+ * @param {number} len
+ * @param {number} success
+ * @param {number} roll
+ * @param {number} uchance
+ * @param {number} chance
+ * @param {number} api_key_id
+ * @param {string} character_name
+ * @param {string} server
  * @returns {Promise<any>}
  */
-const insertCompound = async function (item_name, item_level, scroll_type, offering, success, api_key) {
+const insertCompound = async function (item_name, item_level, scroll_type, offering, slot_num, len, success, roll, uchance, chance, api_key_id, character_name, server) {
     return new Promise(function (resolve, reject) {
         let failed = false;
 
@@ -192,20 +197,33 @@ const insertCompound = async function (item_name, item_level, scroll_type, offer
         }
 
         if (!input.validate(item_name, "string", {min: 2, max: 16}))
-            fail("invalid item name");
+            fail("invalid item name "+item_name);
         if (!input.validate(item_level, "int", {min: 0, max: 12}))
-            fail("invalid item level");
+            fail("invalid item level "+item_level);
         if (!input.validate(scroll_type, "string", {min: 2, max: 16}))
-            fail("invalid scroll_type");
+            fail("invalid scroll_type" +scroll_type);
         if (!input.validate(offering, "bool"))
-            fail("invalid offering");
+            fail("invalid offering "+offering);
+        if (!input.validate(slot_num, "int", {min: 0, max: 41}))
+            fail("invalid slot_num "+slot_num);
+        if (!input.validate(len, "int", {min:0}))
+            fail("invalid len "+len);
         if (!input.validate(success, "bool"))
-            fail("invalid success");
-        if (!input.validate(api_key, "string", {min: 2, max: 64}))
-            fail("invalid api key");
-
+            fail("invalid success "+success);
+        if (!input.validate(roll, "int", {min:0,max:9999}))
+            fail("invalid roll "+roll);
+        if (!input.validate(chance, "double",{min:0,max:10}))
+            fail("invalid chance "+chance);
+        if (!input.validate(uchance, "int",{min:0, max:19999}))
+            fail("invalid uchance "+uchance);
+        if (!input.validate(character_name, "string",{min:4, max:12}))
+            fail("invalid character_name "+character_name);
+        if (!input.validate(api_key_id, "int", {min: 1}))
+            fail("invalid api key id "+api_key_id);
+        if (!input.validate(server, "string", {min: 1, max:16}))
+            fail("invalid server "+server);
         if (!failed)
-            pool.query(st.insert.compounds, [item_name, item_level, scroll_type, offering, success, api_key], function (err, result) {
+            pool.query(st.insert.compounds, [item_name, item_level, scroll_type, offering, slot_num, len, success, roll, uchance, chance, api_key_id, character_name, server], function (err, result) {
                 if (err)
                     reject(err);
                 resolve(result);
@@ -218,14 +236,19 @@ const insertCompound = async function (item_name, item_level, scroll_type, offer
  * @param {string} item_name
  * @param {number} item_level
  * @param {string} scroll_type
- * @param {number} offering
+ * @param {boolean} offering
+ * @param {number} slot_num
+ * @param {number} len
  * @param {number} success
- * @param {string} api_key
- * @param {number} seed0
- * @param {number} seed1
+ * @param {number} roll
+ * @param {number} uchance
+ * @param {number} chance
+ * @param {number} api_key_id
+ * @param {string} character_name
+ * @param {string} server
  * @returns {Promise<any>}
  */
-const insertUpgrade = async function (item_name, item_level, scroll_type, offering, success, api_key) {
+const insertUpgrade = async function (item_name, item_level, scroll_type, offering, slot_num, len, success, roll, uchance, chance, api_key_id, character_name, server) {
     return new Promise(function (resolve, reject) {
         let failed = false;
 
@@ -235,20 +258,34 @@ const insertUpgrade = async function (item_name, item_level, scroll_type, offeri
         }
 
         if (!input.validate(item_name, "string", {min: 2, max: 16}))
-            fail("invalid item name");
+            fail("invalid item name "+item_name);
         if (!input.validate(item_level, "int", {min: 0, max: 12}))
-            fail("invalid item level");
+            fail("invalid item level "+item_level);
         if (!input.validate(scroll_type, "string", {min: 2, max: 16}))
-            fail("invalid scroll_type");
+            fail("invalid scroll_type" +scroll_type);
         if (!input.validate(offering, "bool"))
-            fail("invalid offering");
+            fail("invalid offering "+offering);
+        if (!input.validate(slot_num, "int", {min: 0, max: 41}))
+            fail("invalid slot_num "+slot_num);
+        if (!input.validate(len, "int", {min:0}))
+            fail("invalid len "+len);
         if (!input.validate(success, "bool"))
-            fail("invalid success");
-        if (!input.validate(api_key, "string", {min: 2, max: 64}))
-            fail("invalid api key");
+            fail("invalid success "+success);
+        if (!input.validate(roll, "int", {min:0,max:9999}))
+            fail("invalid roll "+roll);
+        if (!input.validate(chance, "double",{min:0,max:10}))
+            fail("invalid chance "+chance);
+        if (!input.validate(uchance, "int",{min:0, max:19999}))
+            fail("invalid uchance "+uchance);
+        if (!input.validate(character_name, "string",{min:4, max:12}))
+            fail("invalid character_name "+character_name);
+        if (!input.validate(api_key_id, "int", {min: 1}))
+            fail("invalid api key id "+api_key_id);
+        if (!input.validate(server, "string", {min: 1, max:16}))
+            fail("invalid server "+server);
 
         if (!failed)
-            pool.query(st.insert.upgrades, [item_name, item_level, scroll_type, offering, success, api_key], function (err, result) {
+            pool.query(st.insert.upgrades, [item_name, item_level, scroll_type, offering, slot_num, len, success, roll, uchance, chance, api_key_id, character_name, server], function (err, result) {
                 if (err)
                     reject(err);
                 resolve(result);
@@ -596,7 +633,7 @@ const updateExchangeStatistics = function (item_name, item_level, result, amount
  * @param success
  * @returns {Promise<any>}
  */
-const updateUpgradesStatistics = function (item_name, item_level, total, success) {
+const updateUpgradeStatistics = function (item_name, item_level, total, success) {
     return new Promise(function (resolve, reject) {
         let failed = false;
 
@@ -634,7 +671,7 @@ const updateUpgradesStatistics = function (item_name, item_level, total, success
  * @param {number} success
  * @returns {Promise<any>}
  */
-const updateCompoundsStatistics = function (item_name, item_level, total, success) {
+const updateCompoundStatistics = function (item_name, item_level, total, success) {
     return new Promise(function (resolve, reject) {
         let failed = false;
 
@@ -646,11 +683,11 @@ const updateCompoundsStatistics = function (item_name, item_level, total, succes
         if (!input.validate(item_name, "string", {min: 2, max: 16}))
             fail("invalid item name");
         if (!input.validate(item_level, "int", {min: 0, max: 12}))
-            fail("invalid item level");
+            fail("invalid item level "+item_level);
         if (!input.validate(total, "int", {min: 1}))
-            fail("invalid item level");
-        if (!input.validate(success, "int", {min: 1}))
-            fail("invalid item level");
+            fail("invalid total");
+        if (!input.validate(success, "bool"))
+            fail("invalid success");
         if (total < success) {
             fail("Success has to smaller or equal to Total!");
         }
@@ -818,6 +855,22 @@ const validKey = async function (key) {
             fail("Invalid Input");
     });
 };
+const getApiKeyId = async function(key){
+    return new Promise(function (resolve, reject) {
+        function fail(reason) {
+            reject(new Error(reason));
+        }
+
+        if (input.validate(key, "string", {min: 0, max: 64}))
+            pool.query(st.get.api_key, [key], function (err, result) {
+                if (err)
+                    reject(err);
+                resolve(result);
+            });
+        else
+            fail("Invalid api_key");
+    });
+};
 
 const getReverseDrop = async function (itemName) {
     return new Promise(function (resolve, reject) {
@@ -892,14 +945,15 @@ module.exports = {
     updateDropStatistics: updateDropStatistics,
     updateKillStatistics: updateKillStatistics,
     updateExchangeStatistics: updateExchangeStatistics,
-    updateUpgradesStatistics: updateUpgradesStatistics,
-    updateCompoundsStatistics: updateCompoundsStatistics,
+    updateUpgradeStatistics: updateUpgradeStatistics,
+    updateCompoundStatistics: updateCompoundStatistics,
     getKillsByMonster: getKillsByMonster,
     getDropsByMonster: getDropsByMonster,
     getExchangesByItemName: getExchangesByItemName,
     getUpgradesByItemName: getUpgradesByItemName,
     getCompoundsByItemName: getCompoundsByItemName,
     validKey: validKey,
+    getApiKeyId: getApiKeyId,
     getReverseDrop: getReverseDrop,
     clearAllStatistics: clearAllStatistics,
     pool: pool,

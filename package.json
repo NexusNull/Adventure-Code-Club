@@ -2,9 +2,9 @@
   "name": "adventure-code-club",
   "version": "1.0.3",
   "description": "Adventure Code Club server side code from: https://github.com/TiagoGoddard/AdventureLandDrops",
-  "main": "app.js",
+  "main": "main.js",
   "scripts": {
-    "test": "./node_modules/jshint/bin/jshint app.js"
+    "test": "./node_modules/jshint/bin/jshint main.js"
   },
   "author": "Draivin",
   "contributors": [

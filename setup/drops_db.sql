@@ -23,10 +23,11 @@ DROP TABLE IF EXISTS `api_keys`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `api_keys` (
+  `id` int(11) NOT NULL,
   `player` varchar(64) NOT NULL,
   `api_key` varchar(32) NOT NULL,
   `valid` tinyint(1) NOT NULL DEFAULT '0',
-  PRIMARY KEY (`api_key`)
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -55,17 +56,24 @@ DROP TABLE IF EXISTS `compounds`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `compounds` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `item_name` varchar(64) NOT NULL,
+  `item_name` varchar(16) NOT NULL,
   `item_level` int(11) NOT NULL,
-  `scroll_type` varchar(32) NOT NULL,
+  `scroll_type` varchar(16) NOT NULL,
   `offering` tinyint(1) NOT NULL,
+  `slot_num` tinyint(4) NOT NULL,
+  `len` smallint(6) NOT NULL,
   `success` tinyint(1) NOT NULL,
-  `api_key` varchar(64) NOT NULL,
+  `roll` smallint(6) NOT NULL,
+  `uchance` smallint(6) NOT NULL,
+  `chance` double NOT NULL,
+  `api_key_id` int(11) NOT NULL,
+  `character_name` varchar(12) NOT NULL,
+  `server` varchar(16) NOT NULL,
   `time` datetime NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `compounds_ibfk_1` (`api_key`),
-  CONSTRAINT `compounds_ibfk_1` FOREIGN KEY (`api_key`) REFERENCES `api_keys` (`api_key`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=90096 DEFAULT CHARSET=latin1;
+  KEY `compounds_api_key_id` (`api_key_id`),
+  CONSTRAINT `compounds_api_key_id` FOREIGN KEY (`api_key_id`) REFERENCES `api_keys` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -96,9 +104,8 @@ CREATE TABLE `drops` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `item_name` varchar(64) NOT NULL,
   `kill_id` int(11) NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `lookup` (`kill_id`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=402 DEFAULT CHARSET=latin1;
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -130,13 +137,13 @@ CREATE TABLE `exchanges` (
   `item_name` varchar(64) NOT NULL,
   `result` varchar(64) NOT NULL,
   `amount` int(11) NOT NULL,
-  `api_key` varchar(64) NOT NULL,
+  `api_key_id` int(11) NOT NULL,
   `time` datetime NOT NULL,
   `item_level` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `userkey` (`api_key`),
-  CONSTRAINT `exchanges_ibfk_1` FOREIGN KEY (`api_key`) REFERENCES `api_keys` (`api_key`)
-) ENGINE=InnoDB AUTO_INCREMENT=32679 DEFAULT CHARSET=latin1;
+  KEY `exchanges_api_key_id` (`api_key_id`),
+  CONSTRAINT `exchanges_api_key_id` FOREIGN KEY (`api_key_id`) REFERENCES `api_keys` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -171,13 +178,13 @@ CREATE TABLE `kills` (
   `monster_level` int(11) NOT NULL,
   `gold` int(11) NOT NULL,
   `items` int(11) NOT NULL,
-  `character_name` varchar(64) NOT NULL,
-  `api_key` varchar(64) NOT NULL,
+  `character_name` varchar(12) NOT NULL,
+  `api_key_id` int(11) NOT NULL,
   `time` datetime NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `api_key` (`api_key`),
-  CONSTRAINT `api_key` FOREIGN KEY (`api_key`) REFERENCES `api_keys` (`api_key`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=110310 DEFAULT CHARSET=latin1;
+  KEY `kills_api_key_id` (`api_key_id`),
+  CONSTRAINT `kills_api_key_id` FOREIGN KEY (`api_key_id`) REFERENCES `api_keys` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -194,14 +201,14 @@ CREATE TABLE `market` (
   `map` varchar(64) NOT NULL,
   `server` varchar(64) NOT NULL,
   `items` int(11) NOT NULL,
-  `level` int(11) DEFAULT NULL,
+  `level` int(11) NOT NULL,
   `player` varchar(64) NOT NULL,
-  `userkey` varchar(64) NOT NULL,
+  `api_key_id` int(11) NOT NULL,
   `version` int(11) NOT NULL,
   `time` datetime NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `userkey` (`userkey`),
-  CONSTRAINT `market_ibfk_1` FOREIGN KEY (`userkey`) REFERENCES `api_keys` (`api_key`)
+  KEY `market_api_key_id` (`api_key_id`),
+  CONSTRAINT `market_api_key_id` FOREIGN KEY (`api_key_id`) REFERENCES `api_keys` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -247,18 +254,24 @@ DROP TABLE IF EXISTS `upgrades`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `upgrades` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `item_name` varchar(64) NOT NULL,
+  `item_name` varchar(16) NOT NULL,
   `item_level` int(11) NOT NULL,
-  `scroll_type` varchar(32) NOT NULL,
+  `scroll_type` varchar(16) NOT NULL,
   `offering` tinyint(1) NOT NULL,
+  `slot_num` tinyint(4) NOT NULL,
+  `len` smallint(6) NOT NULL,
   `success` tinyint(1) NOT NULL,
-  `api_key` varchar(64) NOT NULL,
+  `roll` smallint(4) NOT NULL,
+  `uchance` smallint(4) NOT NULL,
+  `chance` double NOT NULL,
+  `api_key_id` int(11) NOT NULL,
+  `character_name` varchar(12) NOT NULL,
+  `server` varchar(16) NOT NULL,
   `time` datetime NOT NULL,
-  `seed0` tinyint(4) NOT NULL,
-  `seed1` tinyint(4) NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `userkey` (`api_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+  KEY `upgrades_api_key_id` (`api_key_id`),
+  CONSTRAINT `upgrades_api_key_id` FOREIGN KEY (`api_key_id`) REFERENCES `api_keys` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -270,4 +283,4 @@ CREATE TABLE `upgrades` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2019-06-20  7:02:24
+-- Dump completed on 2019-06-30  2:45:56

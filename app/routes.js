@@ -1,8 +1,8 @@
-var data = require('./data');
-const dataFetcher = require("./data/DataFetcher");
+var data = require('../data');
+const dataFetcher = require("../data/DataFetcher");
 const sprites = require('./sprites');
 const sortOrder = require('./sortOrder');
-const mysql = require('./collection/mysql.js');
+const mysql = require('../collection/mysql.js');
 
 let monsters = [];
 let npcs = [];

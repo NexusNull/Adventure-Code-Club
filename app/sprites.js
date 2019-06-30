@@ -1,4 +1,4 @@
-const data = require('./data');
+const data = require('../data');
 
 const monsterSprite = function(type, size = 64) {
     const skin = data.skins[type];
