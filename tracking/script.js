@@ -4,7 +4,7 @@ let ACC = function () {
     this.chests = {};
     this.debug = false;
     this.apiKey = "7ddf32e17a6ac5ce04a8ecbf782ca509";
-    this.dropServer = "localhost:8082"
+    this.dropServer = "drop.adventurecode.club"
 };
 
 ACC.prototype.registerListeners = function () {
