@@ -53,7 +53,7 @@ server.route({
         let characterName = saveAccessNestedProperty(upgradeData, ["characterName"]);
         let server = saveAccessNestedProperty(upgradeData, ["server"]);
         let ALBot = saveAccessNestedProperty(upgradeData, ["ALBot"]);
-        let slot_num = saveAccessNestedProperty(upgradeData, ["data", "num"]);
+        let slot_num = parseInt(saveAccessNestedProperty(upgradeData, ["data", "num"]));
         let chance = parseFloat(saveAccessNestedProperty(upgradeData, ["data", "p", "chance"]));
         let nums = saveAccessNestedProperty(upgradeData, ["data", "p", "nums"]);
         let item_name = saveAccessNestedProperty(upgradeData, ["data", "p", "name"]);
@@ -110,7 +110,7 @@ server.route({
         let characterName = saveAccessNestedProperty(compoundData, ["characterName"]);
         let server = saveAccessNestedProperty(compoundData, ["server"]);
         let ALBot = saveAccessNestedProperty(compoundData, ["ALBot"]);
-        let slot_num = saveAccessNestedProperty(compoundData, ["data", "num"]);
+        let slot_num = parseInt(saveAccessNestedProperty(compoundData, ["data", "num"]));
         let chance = parseFloat(saveAccessNestedProperty(compoundData, ["data", "p", "chance"]));
         let nums = saveAccessNestedProperty(compoundData, ["data", "p", "nums"]);
         let item_name = saveAccessNestedProperty(compoundData, ["data", "p", "name"]);
