@@ -66,9 +66,11 @@ ACC.prototype.submitData = function(){
 
 };
 
-if (!!true) {
+if (!window.ACC) {
     window.ACC = new ACC();
     parent.add_log("Starting Adventure Code Club Listener");
     window.ACC.setup();
+}else {
+    parent.add_log("Adventure Code Club Listener already running");
 }
 
