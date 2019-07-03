@@ -646,7 +646,7 @@ const updateUpgradeStatistics = function (item_name, item_level, total, success)
             fail("invalid item name");
         if (!input.validate(item_level, "int", {min: 0, max: 12}))
             fail("invalid item level");
-        if (!input.validate(success, "bool"))
+        if (!input.validate(success, "int"))
             fail("invalid success");
 
         if (total < success) {
@@ -656,8 +656,10 @@ const updateUpgradeStatistics = function (item_name, item_level, total, success)
 
         if (!failed)
             pool.query(st.update_statistics.upgrades, [item_name, item_level, total, success, total, success], function (err, result) {
-                if (err)
+                if (err){
                     reject(err);
+                }
+
                 resolve(result);
             });
     })
@@ -686,7 +688,7 @@ const updateCompoundStatistics = function (item_name, item_level, total, success
             fail("invalid item level "+item_level);
         if (!input.validate(total, "int", {min: 1}))
             fail("invalid total");
-        if (!input.validate(success, "bool"))
+        if (!input.validate(success, "int",{min:0}))
             fail("invalid success");
         if (total < success) {
             fail("Success has to smaller or equal to Total!");
