@@ -340,7 +340,7 @@ const getLimits = async function (tableName) {
             reject(new Error(reason));
         }
 
-        if (st.tables.includes(tableName)) {
+        if (!st.tables.includes(tableName)) {
             fail("Table name invalid!");
         }
 
