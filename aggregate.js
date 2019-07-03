@@ -19,7 +19,7 @@ async function main() {
             try {
                 await mysql.updateKillStatistics(row.character_name, row.monster_name, row.map, row.monster_level, row.kills, row.total_gold);
             } catch (e) {
-                console.log("Invalid Row" + row);
+                console.log("Invalid Row", row, e);
             }
         }
         currentPercent = Math.floor(id / size * 100);
@@ -47,7 +47,7 @@ async function main() {
             try {
                 await mysql.updateDropStatistics(row.monster_name, row.item_name, row.map, row.monster_level, row.seen);
             } catch (e) {
-                console.log("Invalid Row" + row);
+                console.log("Invalid Row", row, e);
             }
         }
         currentPercent = Math.floor(id / size * 100);
@@ -74,7 +74,7 @@ async function main() {
             try {
                 await mysql.updateExchangeStatistics(row.item_name, row.item_level, row.result, row.amount, row.seen);
             } catch (e) {
-                console.log("Invalid Row" + row);
+                console.log("Invalid Row", row, e);
             }
         }
         currentPercent = Math.floor(id / size * 100);
@@ -99,9 +99,9 @@ async function main() {
         let result = await mysql.aggregateCompounds(id, id + batch_size);
         for (let row of result) {
             try {
-                await mysql.updateCompoundsStatistics(row.item_name, row.item_level, row.total, row.success);
+                await mysql.updateCompoundStatistics(row.item_name, row.item_level, row.total, row.success);
             } catch (e) {
-                console.log("Invalid Row" + row);
+                console.log("Invalid Row", row, e);
             }
         }
         currentPercent = Math.floor(id / size * 100);
@@ -126,9 +126,9 @@ async function main() {
         let result = await mysql.aggregateUpgrades(id, id + batch_size);
         for (let row of result) {
             try {
-                await mysql.updateUpgradesStatistics(row.item_name, row.item_level, row.total, row.success);
+                await mysql.updateUpgradeStatistics(row.item_name, row.item_level, row.total, row.success);
             } catch (e) {
-                console.log("Invalid Row" + row);
+                console.log("Invalid Row", row, e);
             }
         }
         currentPercent = Math.floor(id / size * 100);
