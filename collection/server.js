@@ -68,7 +68,7 @@ server.route({
         let len = parseInt(saveAccessNestedProperty(upgradeData, ["data", "q", "upgrade", "len"]));
         try {
             await mysql.insertUpgrade(item_name, item_level, scroll_type, offering, slot_num, len, !!success, nums, uchance, chance, api_key_id, characterName, server);
-            await mysql.updateUpgradeStatistics(item_name, item_level, 1, !!success);
+            await mysql.updateUpgradeStatistics(item_name, item_level, 1, !!success?1:0);
         } catch (e) {
             console.error("APIKey: " + api_key + " Character: " + characterName + " ALBot: " + ALBot + "\n" + e);
             reply().code(400);
@@ -125,7 +125,7 @@ server.route({
         let len = parseInt(saveAccessNestedProperty(compoundData, ["data", "q", "compound", "len"]));
         try {
             await mysql.insertCompound(item_name, item_level, scroll_type, offering, slot_num, len, !!success, nums, uchance, chance, api_key_id, characterName, server);
-            await mysql.updateCompoundStatistics(item_name, item_level, 1, !!success);
+            await mysql.updateCompoundStatistics(item_name, item_level, 1, !!success?1:0);
         } catch (e) {
             console.error("APIKey: " + api_key + " Character: " + characterName + " ALBot: " + ALBot + "\n" + e);
             reply().code(400);
